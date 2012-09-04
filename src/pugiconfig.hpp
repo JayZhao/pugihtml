@@ -17,15 +17,15 @@
 // #define PUGIHTML_WCHAR_MODE
 
 // Uncomment this to disable XPath
-// #define PUGIHTML_NO_XPATH
+#define PUGIHTML_NO_XPATH
 
 // Uncomment this to disable STL
 // Note: you can't use XPath with PUGIHTML_NO_STL
-// #define PUGIHTML_NO_STL
+#define PUGIHTML_NO_STL
 
 // Uncomment this to disable exceptions
 // Note: you can't use XPath with PUGIHTML_NO_EXCEPTIONS
-// #define PUGIHTML_NO_EXCEPTIONS
+#define PUGIHTML_NO_EXCEPTIONS
 
 // Set this to control attributes for public classes/functions, i.e.:
 // #define PUGIHTML_API __declspec(dllexport) // to export all public symbols from DLL

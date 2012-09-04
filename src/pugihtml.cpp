@@ -1448,6 +1448,7 @@ namespace
 				}
 				else if (*s == 0)
 				{
+                    *g.flush(s) = 0;
 					return s;
 				}
 				else ++s;
@@ -2019,7 +2020,6 @@ namespace
             // It's necessary to keep another mark when we have to roll
             // back the name and the mark at the same time.
             char_t* sMark = s;
-            char_t* nameMark = s;
 
             // Parse while the current character is not '\0'
 			while (*s != 0)
@@ -2115,7 +2115,6 @@ namespace
                                         a->value=s;
                                         char_t* dp=s;
                                         char_t temp;
-                                        const char *sch="> /";
                                         //find the end of attribute,200 length is enough,it must return a position;
                                         temp=*dp;//backup the former char
                                         *dp='"';//hack at the end position;
@@ -2164,15 +2163,43 @@ namespace
 								}
 								else if (*s == '>')
 								{
-									++s;
-
-									break;
+                                    const char* name = cursor->name;
+                                    if (strncmp(name, "IMG", 3) == 0 ||
+                                        strncmp(name, "BR", 2) == 0 ||
+                                        strncmp(name, "HR", 2) == 0 ||
+                                        strncmp(name, "WBR", 3) == 0) {
+                                        if(cursor->parent)
+                                        {
+						                    POPNODE(); // Pop.
+                                        }
+                                        else
+                                        {
+                                            // We have reached the root node so do not
+                                            // attempt to pop anymore nodes
+                                            break;
+                                        }
+                                        s++;
+										break;
+                                    }
+                                    else{
+                                        ++s;
+                                        
+                                        break;
+                                    }
+									
 								}
 								else if (*s == 0 && endch == '>')
 								{
 									break;
 								}
-								else THROW_ERROR(status_bad_start_element, s);
+								else if (*s == '<'){
+                                    break;
+                                }
+                                else
+                                {
+                                    ++s;
+                                    break;
+                                }
 							}// while
 
 							// !!!
@@ -2205,50 +2232,57 @@ namespace
 					}
 					else if (*s == '/')
 					{
-						++s;
-
-						char_t* name = cursor->name;
-						if (!name)
-                        {
-                            // TODO ignore exception
-                            //THROW_ERROR(status_end_element_mismatch, s);
+                        ++s;
+                        SKIPWS();
+                        if (*s != '>') {
+                            bool popSuccess = false;
+                            while (!popSuccess) {
+                                char_t* name = cursor->name;
+                                if (!name)
+                                {
+                                    if(cursor->parent)
+                                    {
+                                        POPNODE(); // Pop.
+                                    }
+                                }
+                                else
+                                {
+                                    sMark = s;
+                                    bool matched = true;
+                                    // Read the name while the character is a symbol
+                                    while (IS_CHARTYPE(*s, ct_symbol))
+                                    {
+                                        char_t& upperS = *s++;
+                                        TOUPPER(upperS);
+                                        if (upperS != *name++)
+                                        {
+                                            matched = false;
+                                            break;
+                                        }
+                                    }
+                                    SKIPWS();
+                                    if (matched) {
+                                        popSuccess = true;
+                                    }
+                                    else{
+                                        
+                                        if(cursor->parent)
+                                        {
+                                            // Return to the last position where we started
+                                            // reading the expected closing tag name.
+                                            s = sMark;
+                                            POPNODE(); // Pop.
+                                        }
+                                        else{
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                            }
+                            
                         }
-                        else
-                        {
-                            sMark = s;
-                            nameMark = name;
-                            // Read the name while the character is a symbol
-						    while (IS_CHARTYPE(*s, ct_symbol))
-						    {
-                                // Check if we're closing the correct tag name:
-                                // if the cursor tag does not match the current
-                                // closing tag then throw an exception.
-							    if (*s++ != *name++)
-                                {
-                                    // TODO POPNODE or ignore exception
-                                    //THROW_ERROR(status_end_element_mismatch, s);
-
-                                    // Return to the last position where we started
-                                    // reading the expected closing tag name.
-                                    s = sMark;
-                                    name = nameMark;
-                                    break;
-                                }
-						    }
-                            // Check if the end element is valid
-						    if (*name)
-						    {
-							    if (*s == 0 && name[0] == endch && name[1] == 0)
-                                {
-                                    THROW_ERROR(status_bad_end_element, s);
-                                }
-							    else 
-                                {
-                                    // TODO POPNODE or ignore exception
-                                    //THROW_ERROR(status_end_element_mismatch, s);
-                                }
-						    }
-                        }
+						
 						
                         // The tag was closed so we have to pop the
                         // node off the "stack".
@@ -2326,24 +2360,14 @@ namespace
 
 					s = mark;
 							
-					if (cursor->parent)
-					{
-						PUSHNODE(node_pcdata); // Append a new node on the tree.
-						cursor->value = s; // Save the offset.
+                    PUSHNODE(node_pcdata); // Append a new node on the tree.
+                    cursor->value = s; // Save the offset.
 
-						s = strconv_pcdata(s);
+                    s = strconv_pcdata(s);
 
-						POPNODE(); // Pop since this is a standalone.
-						
-						if (!*s) break;
-					}
-					else
-					{
-						SCANFOR(*s == '<'); // '...<'
-						if (!*s) break;
-						
-						++s;
-					}
+                    POPNODE(); // Pop since this is a standalone.
+                    
+                    if (!*s) break;
 
 					// We're after '<'
 					goto LOC_TAG;
@@ -2396,7 +2420,6 @@ namespace
 				// there's no possible well-formed document with < at the end
 				return make_parse_result(status_unrecognized_tag, length);
 			}
-
 			return result;
 		}
 	};
