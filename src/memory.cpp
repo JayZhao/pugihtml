@@ -44,9 +44,10 @@ namespace pugihtml
 
 		// prepare page structure
 		html_memory_page* page = html_memory_page::construct(page_memory);
-
-		page->memory = memory;
-		page->allocator = _root->allocator;
+        if (page) {
+            page->memory = memory;
+            page->allocator = _root->allocator;
+        }
 
 		return page;
 	}
